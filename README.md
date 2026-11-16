@@ -109,6 +109,42 @@ The script identifies platforms from official URL paths (`CP`, `AP`, `FO`), stan
 - It does not claim that every historical artifact exists online. Some releases or older artifacts may no longer be available from AUTOSAR.
 - It is not a mirror service and should not be used to re-host or republish AUTOSAR material.
 
+## AI / MCP usage
+
+The repository also ships an MCP server so AI assistants can discover and download AUTOSAR artifacts on demand:
+
+```powershell
+# Run the MCP server over stdio
+py -3 .\autosar_mcp_server.py
+
+# Or after pip install
+autosar-fetcher-mcp
+```
+
+Available tools: `autosar_versions`, `autosar_search`, `autosar_download`, `autosar_status`.
+
+Typical AI flow:
+1. `autosar_versions` to see available releases for a platform.
+2. `autosar_search` with a keyword/version/platform to list matching files.
+3. `autosar_download` with an exact URL or narrowed filters (set `download_all=true` to fetch all matches).
+4. `autosar_status` to check progress.
+
+A small web UI is also available:
+
+```powershell
+py -3 .\autosar_web.py --port 8080
+# open http://127.0.0.1:8080
+```
+
+## Packages
+
+- Python (pip): `pip install .` then use `autosar-fetcher`, `autosar-fetcher-mcp`, `autosar-fetcher-web`.
+- Node (npm): see `packages/npm` for a wrapper that launches the Python MCP server/CLI.
+
+## Example output structure
+
+See `examples/expected_output/` for a dummy folder layout (placeholder files only).
+
 ## Copyright and usage notice
 
 AUTOSAR's platform pages say that files are provided for **information only**, are protected by copyright and other intellectual-property rights, and that commercial exploitation requires an appropriate license/partnership. Review AUTOSAR's current Terms of Use and each file's disclaimer. Keep this library for authorized internal/reference use and do not push the downloaded official files into a public GitHub repository or redistribute them unless your license explicitly permits it.

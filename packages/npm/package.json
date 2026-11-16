@@ -1,0 +1,18 @@
+{
+  "name": "autosar-standards-fetcher",
+  "version": "1.0.0",
+  "description": "Node wrapper for the AUTOSAR Standards Fetcher MCP server and CLI.",
+  "main": "index.js",
+  "bin": {
+    "autosar-fetcher": "bin/autosar-fetcher.js",
+    "autosar-fetcher-mcp": "bin/autosar-fetcher-mcp.js"
+  },
+  "scripts": {
+    "mcp": "node bin/autosar-fetcher-mcp.js"
+  },
+  "keywords": ["autosar", "mcp", "standards", "downloader"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

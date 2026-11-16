@@ -1,0 +1,16 @@
+# Downloaded AUTOSAR artifacts are copyrighted and must not be committed.
+AUTOSAR_Standards_Library/
+*.pdf
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+# Local run logs
+run_logs/
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+# Temporary download parts
+*.part

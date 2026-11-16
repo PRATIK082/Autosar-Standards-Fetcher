@@ -1,0 +1,4 @@
+# Optional but recommended on Windows/corporate networks: uses the Windows certificate store.
+truststore>=0.9.0
+# Fallback CA bundle if truststore is unavailable.
+certifi>=2024.0.0

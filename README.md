@@ -1,400 +1,119 @@
-# Autosar-Standards-Fetcher
-Automated discovery, download and organization of publicly accessible AUTOSAR standards across Classic, Adaptive and Foundation platforms.
-# AutoSpecFetch
+# AUTOSAR Standards Downloader — Classic, Adaptive and Foundation
 
-### Automated AUTOSAR Standards Discovery & Download Manager
+![AUTOSAR Standards Fetcher overview](docs/overview.png)
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)]()
-[![Standards](https://img.shields.io/badge/Standards-AUTOSAR-orange)]()
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+This is a Windows-ready downloader for **publicly linked artifacts on the official AUTOSAR website**. It crawls the standards landing pages and linked release/search pages, discovers downloadable artifacts, and stores them in release- and file-type-oriented folders. It is designed to resume after interruption and to keep a CSV manifest containing source URLs, local paths, byte sizes, SHA-256 checksums, status, and errors.
 
-**AutoSpecFetch** is an independent, open-source Python automation utility designed to discover, download, validate and organize publicly accessible AUTOSAR standard documents.
+## Official starting pages
 
-It helps automotive embedded software engineers, AUTOSAR developers, researchers and tool developers maintain a structured local collection of available AUTOSAR specifications and supporting documents.
+- Standards landing page: <https://www.autosar.org/standards>
+- Classic Platform: <https://www.autosar.org/standards/classic-platform>
+- Adaptive Platform: <https://www.autosar.org/standards/adaptive-platform>
+- Foundation: <https://www.autosar.org/standards/foundation>
+- Release R25-11 page: <https://www.autosar.org/standards/R25-11>
+- Official document search: <https://www.autosar.org/search>
 
-The project focuses on automating document discovery, release-wise organization, reliable downloads and reproducible local standards libraries.
+The site currently labels **R25-11** as the current release for Classic, Adaptive and Foundation (verify on the official site when you run this later).
 
-> AutoSpecFetch is an independent community project. It is not affiliated with, endorsed by, or officially supported by AUTOSAR.
+## Run on Windows
 
----
+1. Extract this ZIP to a writable folder, for example `D:\AUTOSAR\AUTOSAR_Standards_Downloader`.
+2. Install Python 3.10+ from <https://www.python.org/downloads/windows/> if Python is not already installed. Enable **Add Python to PATH** during installation.
+3. Double-click `dry_run_windows.bat` first. It will inspect public pages and show which artifact URLs and paths it can discover without downloading the binary files.
+4. If you see `CERTIFICATE_VERIFY_FAILED`, double-click `fix_tls_windows.bat`. It installs optional TLS trust helpers (`truststore` and `certifi`) and then retries the dry-run. It does **not** turn off certificate validation.
+5. Once the dry-run discovers artifact URLs, double-click `run_download_windows.bat` to download.
+6. The library is written to `AUTOSAR_Standards_Library` beside the scripts. Re-run the batch file to resume; successful files already recorded in the manifest are skipped.
 
-## Table of Contents
+The downloader can run with Python standard-library TLS roots, but optional `truststore` and `certifi` packages improve certificate handling. Install them with `py -3 -m pip install -r requirements.txt` (or run `fix_tls_windows.bat`). Internet access to `www.autosar.org` is required on the Windows PC. On managed/corporate networks, ask IT for the approved root CA if HTTPS inspection is used; do not disable certificate verification.
 
-- Overview
-- Key Features
-- Supported AUTOSAR Platforms
-- Supported Document Types
-- Project Architecture
-- Installation
-- Usage
-- Output Directory Structure
-- Download Management
-- Security and Reliability
-- Legal and Licensing
-- Roadmap
-- Contributing
-- Author
-- Acknowledgements
+The crawler now skips faceted search-filter URLs and follows the unfiltered search pagination instead. This avoids a combinatorial explosion of redundant pages while still discovering all publicly linked standards artifacts (about 4,300 documents in the current AUTOSAR search index).
 
-## Overview
+### Command-line alternatives
 
-AUTOSAR specifications are published across multiple platforms and releases. Finding, downloading and maintaining the relevant documents manually can become time-consuming.
+```powershell
+# Discover URLs and planned paths, without downloading binary files
+py -3 .\download_autosar_standards.py --dry-run --output-dir D:\AUTOSAR\AUTOSAR_Standards_Library
 
-AutoSpecFetch automates this workflow by:
+# Download public linked files
+py -3 .\download_autosar_standards.py --output-dir D:\AUTOSAR\AUTOSAR_Standards_Library
 
-1. Accessing official AUTOSAR standards pages.
-2. Discovering publicly accessible document links.
-3. Identifying document types and release information where available.
-4. Organizing documents into a structured directory hierarchy.
-5. Downloading discovered files.
-6. Maintaining a download manifest and execution records.
-7. Supporting dry-run inspection before downloading.
+# Slower crawling if you want to reduce load on the official website
+py -3 .\download_autosar_standards.py --delay 1.0 --output-dir D:\AUTOSAR\AUTOSAR_Standards_Library
 
-The objective is to make standards acquisition and local document management easier for automotive engineering workflows.
+# Use Windows/OS certificate trust store (requires: py -3 -m pip install --user truststore)
+py -3 .\download_autosar_standards.py --dry-run --tls-backend truststore
 
-## Key Features
+# Use an approved organization CA bundle if your IT team provides one
+py -3 .\download_autosar_standards.py --dry-run --ca-bundle C:\Certificates\approved-root-ca.pem
+```
 
-| Feature | Description |
-|---|---|
-| Automated discovery | Finds publicly linked standards documents |
-| Release organization | Groups documents by platform and release |
-| Multiple formats | Supports PDF, ZIP, XML, XSD, ARXML and spreadsheets where available |
-| Dry-run mode | Inspects discovered files before downloading |
-| Download manifest | Tracks source URLs and downloaded artifacts |
-| Resume support | Avoids unnecessarily downloading existing successful files |
-| SSL/TLS support | Uses certificate verification and configurable trusted CA bundles |
-| Error reporting | Records download and page-access failures |
-| Structured library | Automatically creates organized output folders |
+### Download only specific platforms, releases or file types
 
-## Supported AUTOSAR Platforms
+Use these filters to avoid downloading the whole library. Values are comma-separated.
 
-### 1. Classic Platform
+```powershell
+# Only Classic Platform, R25-11, PDFs
+py -3 .\download_autosar_standards.py --platforms CP --releases R25-11 --categories PDF
 
-The Classic Platform is designed for deeply embedded automotive systems and microcontroller-based ECUs.
+# Only Adaptive and Foundation, R24-11 and R23-11
+py -3 .\download_autosar_standards.py --platforms Adaptive_Platform,Foundation --releases R24-11,R23-11
 
-Examples of relevant specification areas:
+# Dry-run first to verify scope
+py -3 .\download_autosar_standards.py --dry-run --platforms CP --releases R25-11
+```
 
-- Basic Software (BSW)
-- Microcontroller Abstraction Layer (MCAL)
-- ECU Abstraction Layer
-- Services Layer
-- Runtime Environment (RTE)
-- System Services
-- Communication Stack
-- Diagnostic Stack
-- Memory Stack
-- ECU Configuration
-- Methodology
-- Application Interfaces
+Accepted platform forms: `CP`, `Classic_Platform`, `AP`, `Adaptive_Platform`, `FO`, `Foundation`, `AI`, `Application_Interfaces`, `Shared`, `Unclassified`.  
+Releases can be written as `R25-11` or `R4.4.0` (dots are normalized automatically).  
+Categories: `PDF`, `Archives`, `Spreadsheets`, `XML_XSD_ARXML`, `Office_Documents`, `Text_and_Data`, `Other`.
 
-Official source:
+### Resume and retry behavior
 
-https://www.autosar.org/standards/classic-platform
+- Re-run the same command at any time. Files already recorded as `downloaded` in `download_manifest.csv` are skipped.
+- Files recorded as `error` are retried automatically.
+- Interrupted runs are safe: each successful file is saved and recorded before the next one starts.
+- Transient network failures are retried a few times automatically.
+- Use `--max-pages` (default `10000`) if you need to cap or extend crawling. The current AUTOSAR search index needs only a few hundred pages.
 
-### 2. Adaptive Platform
-
-The Adaptive Platform targets high-performance computing automotive systems and dynamically upgradeable software architectures.
-
-Relevant specification areas include:
-
-- Execution Management
-- Communication Management
-- State Management
-- Diagnostics
-- Persistency
-- Update and Configuration Management
-- Platform Health Management
-- Identity and Access Management
-- SOME/IP
-- Manifest specifications
-- Adaptive AUTOSAR methodology
-
-Official source:
-
-https://www.autosar.org/standards/adaptive-platform
-
-### 3. Foundation
-
-Foundation contains common specifications and technical foundations shared across AUTOSAR platforms.
-
-Relevant areas include:
-
-- Common specifications
-- Protocol specifications
-- Technical foundations
-- Shared interfaces
-- Common requirements and definitions
-
-Official source:
-
-https://www.autosar.org/standards/foundation
-
-## Supported Document Types
-
-AutoSpecFetch is designed to discover and organize available document formats, including:
-
-| Extension | Document type |
-|---|---|
-| PDF | Technical specifications and requirements |
-| ZIP | Specification packages and archives |
-| XML | XML specifications and models |
-| XSD | XML schema definitions |
-| ARXML | AUTOSAR XML descriptions |
-| XLS / XLSX | Spreadsheets and supporting documents |
-| DOC / DOCX | Office documents |
-| TXT | Text-based technical documents |
-
-Actual availability depends on the official source and applicable access permissions.
-
-## Project Architecture
+## Folder layout created automatically
 
 ```text
-AutoSpecFetch/
-│
-├── download_autosar_standards.py
-├── requirements.txt
-├── README.md
-├── LICENSE
-├── CONTRIBUTING.md
-├── .gitignore
-│
-├── run_download_windows.bat
-├── dry_run_windows.bat
-├── fix_tls_windows.bat
-│
-├── tests/
-│
-├── config/
-│
-├── logs/
-│
-└── AUTOSAR_Standards_Library/
-    │
-    ├── Classic_Platform/
-    │   └── Releases/
-    │
-    ├── Adaptive_Platform/
-    │   └── Releases/
-    │
-    ├── Foundation/
-    │   └── Releases/
-    │
-    ├── Application_Interfaces/
-    │
-    ├── Shared/
-    │
-    ├── Unclassified/
-    │
-    └── download_manifest.csv
+AUTOSAR_Standards_Library/
+├── Classic_Platform/
+│   └── R25-11/                 # or R24-11, R4_4_0, etc., based on the source URL
+│       ├── PDF/
+│       ├── Archives/
+│       ├── Spreadsheets/
+│       ├── XML_XSD_ARXML/
+│       ├── Office_Documents/
+│       ├── Text_and_Data/
+│       └── Other/
+├── Adaptive_Platform/
+│   └── <release>/...
+├── Foundation/
+│   └── <release>/...
+├── Application_Interfaces/     # if the official source URL identifies this collection
+├── Shared/                      # shared artifacts that are not platform-specific
+├── Unclassified/                # source artifacts that cannot be classified confidently
+├── download_manifest.csv
+└── DOWNLOAD_SUMMARY.txt
 ```
 
-Each platform and release can contain dedicated document-type folders:
+The script identifies platforms from official URL paths (`CP`, `AP`, `FO`), standard filename prefixes and referring page context. It derives the release from the official URL path where possible, and stores files that cannot be safely assigned to a release under `Unversioned`. It categorizes `.pdf`, archive files, spreadsheets and `.xml`/`.xsd`/`.arxml` artifacts separately. It does not extract ZIP packages automatically; preserve the original ZIPs and extract them yourself when needed.
 
-```text
-R25-11/
-│
-├── PDF/
-├── Archives/
-├── Spreadsheets/
-├── XML_XSD_ARXML/
-├── Office_Documents/
-├── Text_and_Data/
-└── Other/
-```
+## Completeness and limitations
 
-The actual directory structure is determined by the downloader's classification logic.
+- The downloader gathers **public files linked from the pages and links it can reach**. If AUTOSAR loads a document list only through an interactive JavaScript endpoint or a user-specific download flow, that item may not be discovered by this generic crawler. Check `download_manifest.csv` and `DOWNLOAD_SUMMARY.txt` after a run.
+- `download_manifest.csv` is the audit trail: `downloaded`, `error`, `planned` and `skipped` statuses are recorded per source URL. Failed files can be retried by re-running the script. `skipped` means the file did not match your `--platforms`, `--releases` or `--categories` filters.
+- The summary also reports the selected TLS backend, page errors, and a TLS certificate error if the first connection fails. The crawler stops early on certificate-verification failure instead of pointlessly trying every seed URL.
+- The script respects `robots.txt` when it can be read, uses a low request rate, restricts crawling to the official `autosar.org` standards/search areas and does not attempt authentication or bypass restrictions.
+- It does not claim that every historical artifact exists online. Some releases or older artifacts may no longer be available from AUTOSAR.
+- It is not a mirror service and should not be used to re-host or republish AUTOSAR material.
 
-## Installation
+## Copyright and usage notice
 
-### Prerequisites
+AUTOSAR's platform pages say that files are provided for **information only**, are protected by copyright and other intellectual-property rights, and that commercial exploitation requires an appropriate license/partnership. Review AUTOSAR's current Terms of Use and each file's disclaimer. Keep this library for authorized internal/reference use and do not push the downloaded official files into a public GitHub repository or redistribute them unless your license explicitly permits it.
 
-- Python 3.10 or newer
-- Internet connectivity
-- Git (optional)
-- Windows, Linux or macOS
-
-### Clone repository
-
-```bash
-git clone https://github.com/PRATIK082/autosar-standards-fetcher.git
-
-cd autosar-standards-fetcher
-```
-
-### Install dependencies
-
-```bash
-python -m venv .venv
-```
-
-Windows:
-
-```bat
-.venv\Scripts\activate
-```
-
-Linux/macOS:
-
-```bash
-source .venv/bin/activate
-```
-
-Install requirements:
-
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-### Windows
-
-Perform a discovery-only run:
-
-```bat
-dry_run_windows.bat
-```
-
-Start the download process:
-
-```bat
-run_download_windows.bat
-```
-
-If certificate configuration needs attention:
-
-```bat
-fix_tls_windows.bat
-```
-
-### Python CLI
-
-Run discovery without downloading:
-
-```bash
-python download_autosar_standards.py --dry-run
-```
-
-For other available options:
-
-```bash
-python download_autosar_standards.py --help
-```
-
-If your network requires an approved custom CA bundle:
-
-```bash
-python download_autosar_standards.py --dry-run --ca-bundle "path/to/approved-ca.pem"
-```
-
-Use only options supported by the installed script version.
-
-## Output and Download Manifest
-
-AutoSpecFetch maintains a local download manifest to help track the collection.
-
-Example manifest fields:
-
-| Field | Purpose |
-|---|---|
-| Source URL | Original document location |
-| Platform | Classic, Adaptive or Foundation |
-| Release | Identified AUTOSAR release |
-| Filename | Original or normalized filename |
-| File type | PDF, ZIP, XML, XSD, etc. |
-| Download status | Pending, successful or failed |
-| Local path | Destination file |
-| Checksum | File-integrity verification, where implemented |
-
-The manifest helps users review download history and identify missing or unsuccessful downloads.
-
-## Security and Reliability
-
-AutoSpecFetch is designed with the following principles:
-
-- HTTPS certificate verification must remain enabled.
-- Custom CA certificates should only come from trusted sources.
-- No hardcoded credentials or authentication secrets.
-- Respect applicable website access policies and rate limits.
-- Do not bypass authentication, paywalls or access restrictions.
-- Validate downloaded files before treating them as successful artifacts.
-- Preserve original source URLs for traceability.
-
-## Legal Notice and AUTOSAR Licensing
-
-**Important: AUTOSAR specifications and associated documents are subject to their respective copyright and licensing conditions.**
-
-AutoSpecFetch is an independent automation utility.
-
-- This repository contains software for discovering and downloading documents.
-- AUTOSAR specifications, PDFs, XML files, XSD files, ARXML files and other official materials are not included in this source repository.
-- Users are responsible for ensuring that they have the necessary rights and permissions to access and download documents.
-- Users must comply with AUTOSAR's applicable licensing, copyright and usage conditions.
-- Downloaded materials must not be redistributed, republished or commercially exploited unless the applicable rights explicitly permit it.
-- The AUTOSAR name and trademarks belong to their respective owners.
-
-Official AUTOSAR website:
-
-https://www.autosar.org/
-
-Official standards portal:
-
-https://www.autosar.org/standards
-
-## Roadmap
-
-The following improvements are potential future development directions.
-
-- [ ] Complete release discovery for Classic, Adaptive and Foundation.
-- [ ] Improve release and document classification.
-- [ ] Add configurable source discovery.
-- [ ] Add download retry and recovery strategies.
-- [ ] Add stronger file-integrity validation.
-- [ ] Add duplicate document detection.
-- [ ] Add parallel downloads with configurable concurrency.
-- [ ] Add detailed download reports.
-- [ ] Add command-line filtering by platform and release.
-- [ ] Add Linux and macOS launch scripts.
-- [ ] Add document version comparison.
-- [ ] Add local standards search and indexing.
-- [ ] Add optional integration with AUTOSAR engineering tools.
-
-## Contributing
-
-Contributions are welcome!
-
-You can contribute through:
-
-1. Bug reports.
-2. Feature requests.
-3. Improved document discovery.
-4. Release classification improvements.
-5. Download reliability enhancements.
-6. Cross-platform compatibility.
-7. Documentation and testing.
-
-Please open an issue before implementing major architectural changes.
-
-## Author
-
-**Pratik Patil**
-
-Automotive Software | AUTOSAR | Embedded Engineering | AI-driven Engineering Automation
-
-GitHub: https://github.com/PRATIK082
-
-LinkedIn: https://www.linkedin.com/in/-pratikpatil-/
-
-## Acknowledgements
-
-This project references the publicly accessible AUTOSAR standards portal for document discovery.
-
-AUTOSAR official website:
-
-https://www.autosar.org/
-
----
-
-**AutoSpecFetch — Making AUTOSAR standards discovery and local document management easier for automotive engineers.**
-
+Official pages:
+- <https://www.autosar.org/standards/classic-platform>
+- <https://www.autosar.org/standards/adaptive-platform>
+- <https://www.autosar.org/standards/foundation>

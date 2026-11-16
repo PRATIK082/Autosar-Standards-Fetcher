@@ -1,0 +1,11 @@
+AUTOSAR_Standards_Library/
+  Classic_Platform/<release>/<category>/
+  Adaptive_Platform/<release>/<category>/
+  Foundation/<release>/<category>/
+  Application_Interfaces/<release>/<category>/
+  Shared/<release>/<category>/
+  Unclassified/<release>/<category>/
+  download_manifest.csv
+  DOWNLOAD_SUMMARY.txt
+
+Categories: PDF, Archives, Spreadsheets, XML_XSD_ARXML, Office_Documents, Text_and_Data, Other

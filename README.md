@@ -136,10 +136,22 @@ py -3 .\autosar_web.py --port 8080
 # open http://127.0.0.1:8080
 ```
 
-## Packages
+## Packages (pip + npm)
 
-- Python (pip): `pip install .` then use `autosar-fetcher`, `autosar-fetcher-mcp`, `autosar-fetcher-web`.
-- Node (npm): see `packages/npm` for a wrapper that launches the Python MCP server/CLI.
+- Python (pip): `pip install .` then use `autosar-fetcher`, `autosar-fetcher-mcp`, `autosar-fetcher-web`. Optional AI deps: `pip install .[mcp]`.
+- Node (npm): `cd packages/npm && npm install` (requires Python 3.10+ plus the pip package). Provides `autosar-fetcher` and `autosar-fetcher-mcp` wrappers and `require('autosar-standards-fetcher')` config helpers.
+
+## AI agent design (analysis)
+
+Bulk CLI stays untouched. The AI layer reuses it:
+`discover()` crawls once and caches to `autosar_assets_cache.json`;
+`autosar_versions` lists cached releases; `autosar_search` filters by
+keyword/platform/release/category/filename (partial names OK);
+`autosar_download` downloads one exact URL or a filtered set
+(`download_all=true`, `dry_run=true` to preview); `autosar_status`
+reports manifest counts. Web UI (`autosar_web.py`) mirrors the same
+four calls at `/api/versions|search|download|status`. See
+`docs/AI_USAGE.md` and `mcp-config-examples/` (Claude Desktop, Cursor/VS Code, pip/npm).
 
 ## Example output structure
 

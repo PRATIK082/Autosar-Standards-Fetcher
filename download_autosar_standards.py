@@ -44,6 +44,7 @@ DOCUMENT_EXTS = {
     ".pdf", ".zip", ".7z", ".rar", ".gz", ".tgz", ".tar",
     ".xls", ".xlsx", ".xlsm", ".ods", ".csv",
     ".xml", ".xsd", ".arxml", ".json", ".yaml", ".yml", ".txt",
+    ".sha256", ".sha512", ".md5", ".asc",
     ".doc", ".docx", ".ppt", ".pptx", ".rtf", ".odt", ".odp",
     ".html", ".htm", ".md", ".drawio", ".vsdx", ".sch", ".dtd",
 }
@@ -67,9 +68,9 @@ RELEASE_PATTERNS = [
 ]
 
 RELEASE_CATALOG = {
-    "Classic_Platform": ["R25-11", "R24-11", "R23-11", "R22-11", "R21-11", "R20-11", "R19-11", "R4.4.0", "R4.3.1", "4.2", "4.1", "4.0", "3.2", "3.1", "3.0", "2.0"],
-    "Adaptive_Platform": ["R25-11", "R24-11", "R23-11", "R22-11", "R21-11", "R20-11", "R19-11", "R18-10", "R19-03", "R18-03", "R17-10", "R17-03"],
-    "Foundation": ["R25-11", "R24-11", "R23-11", "R22-11", "R21-11", "R20-11", "R19-11", "R1.5.1", "R1.5.0", "R1.4.0", "R1.3.0", "R1.2.0", "R1.1.0"],
+    "Classic_Platform": ["R26-11", "R25-11", "R24-11", "R23-11", "R22-11", "R21-11", "R20-11", "R19-11", "R4.4.0", "R4.3.1", "4.2", "4.1", "4.0", "3.2", "3.1", "3.0", "2.0"],
+    "Adaptive_Platform": ["R26-11", "R25-11", "R24-11", "R23-11", "R22-11", "R21-11", "R20-11", "R19-11", "R18-10", "R19-03", "R18-03", "R17-10", "R17-03"],
+    "Foundation": ["R26-11", "R25-11", "R24-11", "R23-11", "R22-11", "R21-11", "R20-11", "R19-11", "R1.5.1", "R1.5.0", "R1.4.0", "R1.3.0", "R1.2.0", "R1.1.0"],
 }
 CATEGORIES = ["PDF", "Archives", "Spreadsheets", "XML_XSD_ARXML", "Office_Documents", "Text_and_Data", "Other"]
 
@@ -129,6 +130,9 @@ def in_scope_page(url: str) -> bool:
 def is_document_url(url: str) -> bool:
     p = urllib.parse.urlparse(url)
     path = p.path.lower()
+    # CMS sitemap endpoints are crawl navigation, not downloadable artifacts.
+    if path == "/sitemap.xml" or path.startswith("/sitemap.xml/"):
+        return False
     if "/fileadmin/standards/" in path:
         # Only files with document-like extensions are treated as artifacts. Avoid accidentally
         # downloading stylesheets/scripts/images if a CMS link is malformed.
@@ -149,14 +153,27 @@ def release_from_text(text: str) -> Optional[str]:
 
 
 def infer_release(url: str, context_release: Optional[str] = None) -> str:
-    p = urllib.parse.urlparse(url)
-    # URL path is the strongest source, e.g. /fileadmin/standards/R25-11/CP/...
-    value = release_from_text(urllib.parse.unquote(p.path))
-    if value:
-        return value.replace(".", "_")
+    releases = infer_all_releases(url)
+    if releases:
+        return releases[0]
     if context_release:
         return context_release.replace(".", "_")
     return "Unversioned"
+
+
+def infer_all_releases(url: str) -> List[str]:
+    """Return every release token in the URL path (e.g. combined R18-10_R4.4.0_R1.5.0 folders)."""
+    path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+    found: List[str] = []
+    for pattern in RELEASE_PATTERNS:
+        for match in pattern.finditer(path):
+            value = match.group(1).upper()
+            if not value.startswith("R") and re.match(r"\d{2}-\d{2}$", value):
+                value = "R" + value
+            value = value.replace(".", "_")
+            if value not in found:
+                found.append(value)
+    return found
 
 
 def infer_platform(url: str, context_platform: Optional[str] = None) -> str:
@@ -190,6 +207,7 @@ def file_category(url: str) -> str:
     if suffix in {".xml", ".xsd", ".arxml", ".dtd"}: return "XML_XSD_ARXML"
     if suffix in {".doc", ".docx", ".ppt", ".pptx", ".rtf", ".odt", ".odp"}: return "Office_Documents"
     if suffix in {".json", ".yaml", ".yml", ".txt", ".html", ".htm", ".md"}: return "Text_and_Data"
+    if suffix in {".sha256", ".sha512", ".md5", ".asc"}: return "Text_and_Data"
     return "Other"
 
 
@@ -210,7 +228,7 @@ def safe_filename(name: str) -> str:
 
 
 class LinkParser(HTMLParser):
-    ATTRS = ("href", "src", "data-href", "data-src", "data-url", "data-download-url", "data-file", "formaction")
+    ATTRS = ("href", "src", "data-href", "data-src", "data-url", "data-document-url", "data-download-url", "data-file", "formaction")
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.links: List[str] = []
@@ -389,20 +407,52 @@ class AutosarDownloader:
         try:
             with self.manifest_path.open("r", newline="", encoding="utf-8-sig") as fh:
                 for row in csv.DictReader(fh):
-                    if row.get("url"):
-                        self.rows_by_url[row["url"]] = row
+                    if not row.get("url"):
+                        continue
+                    # Self-heal: drop CMS sitemap endpoints previously recorded as artifacts.
+                    if urllib.parse.urlparse(row["url"]).path.lower() == "/sitemap.xml":
+                        stale = (self.output_dir / Path(row.get("relative_path") or "")).resolve() \
+                            if row.get("relative_path") else None
+                        try:
+                            if stale and stale.is_file() and self.output_dir.resolve() in stale.parents:
+                                stale.unlink()
+                        except OSError:
+                            pass
+                        continue
+                    self.rows_by_url[row["url"]] = row
         except Exception as exc:
             self.log(f"[manifest] Existing manifest could not be read; a new one will be created: {exc}")
 
     def write_manifest(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        tmp = self.manifest_path.with_suffix(".csv.tmp")
-        with tmp.open("w", newline="", encoding="utf-8-sig") as fh:
-            writer = csv.DictWriter(fh, fieldnames=MANIFEST_FIELDS, extrasaction="ignore")
-            writer.writeheader()
-            for url in sorted(self.rows_by_url):
-                writer.writerow({field: self.rows_by_url[url].get(field, "") for field in MANIFEST_FIELDS})
-        tmp.replace(self.manifest_path)
+        # Use a unique temp name plus retries so concurrent runs on the same
+        # library cannot corrupt the manifest (previously WinError 5).
+        for attempt in range(5):
+            tmp = self.manifest_path.with_name(f"download_manifest.{os.getpid()}.{attempt}.csv.tmp")
+            try:
+                with tmp.open("w", newline="", encoding="utf-8-sig") as fh:
+                    writer = csv.DictWriter(fh, fieldnames=MANIFEST_FIELDS, extrasaction="ignore")
+                    writer.writeheader()
+                    for url in sorted(self.rows_by_url):
+                        writer.writerow({field: self.rows_by_url[url].get(field, "") for field in MANIFEST_FIELDS})
+                os.replace(tmp, self.manifest_path)
+                return
+            except PermissionError:
+                try:
+                    if tmp.exists():
+                        tmp.unlink()
+                except OSError:
+                    pass
+                if attempt == 4:
+                    raise
+                time.sleep(0.5 * (attempt + 1))
+            except OSError:
+                try:
+                    if tmp.exists():
+                        tmp.unlink()
+                except OSError:
+                    pass
+                raise
 
     def offer_asset(self, url: str, referrer: str, context_platform: Optional[str], context_release: Optional[str]) -> None:
         normalized = normalize_url(url, referrer or None)
@@ -542,6 +592,36 @@ class AutosarDownloader:
             target = target.with_name(f"{target.stem}__{suffix}{target.suffix}")
         return target
 
+    def ensure_release_mirrors(self, url: str, primary_target: Path) -> None:
+        """Mirror a downloaded file into every release folder named in its URL.
+
+        Combined AUTOSAR folders (e.g. R18-10_R4.4.0_R1.5.0) serve several
+        releases from one file. Mirroring keeps each per-version folder
+        complete without re-downloading. Missing/stale copies are refreshed.
+        """
+        try:
+            platform = infer_platform(url)
+            if platform not in PLATFORM_DIRS:
+                return
+            category = file_category(url)
+            try:
+                primary_size = primary_target.stat().st_size
+            except OSError:
+                return
+            for extra in infer_all_releases(url)[1:]:
+                mirror = self.output_dir / platform / extra / category / primary_target.name
+                try:
+                    if mirror.is_file() and mirror.stat().st_size == primary_size:
+                        continue
+                    mirror.parent.mkdir(parents=True, exist_ok=True)
+                    import shutil
+                    shutil.copy2(primary_target, mirror)
+                    self.log(f"[mirror] {mirror.relative_to(self.output_dir).as_posix()}")
+                except OSError as exc:
+                    self.log(f"[mirror error] {mirror}: {exc}")
+        except Exception as exc:  # noqa: BLE001 - mirrors must never fail a download
+            self.log(f"[mirror error] {url}: {exc}")
+
     def download_one(self, asset: Dict[str, str]) -> None:
         url = asset["url"]
         row = self.rows_by_url.get(url, {})
@@ -549,6 +629,8 @@ class AutosarDownloader:
             existing = self.output_dir / Path(row["relative_path"])
             if existing.is_file() and existing.stat().st_size > 0:
                 self.log(f"[already downloaded] {row['relative_path']}")
+                if not self.dry_run:
+                    self.ensure_release_mirrors(url, existing)
                 return
         platform = infer_platform(url, asset.get("context_platform") or None)
         release = infer_release(url, asset.get("context_release") or None)
@@ -562,7 +644,9 @@ class AutosarDownloader:
             }
             self.write_manifest()
             return
-        if self.selected_releases and release not in self.selected_releases:
+        if self.selected_releases and release not in self.selected_releases and not (
+            any(r in self.selected_releases for r in infer_all_releases(url))
+        ):
             self.log(f"[skipped by release filter] {url}")
             self.rows_by_url[url] = {
                 "url": url, "status": "skipped", "relative_path": "", "bytes": "", "sha256": "",
@@ -642,6 +726,7 @@ class AutosarDownloader:
             }
             self.write_manifest()
             self.log(f"[saved] {relative} ({total:,} bytes)")
+            self.ensure_release_mirrors(url, target)
         except Exception as exc:
             try:
                 if temp.exists(): temp.unlink()

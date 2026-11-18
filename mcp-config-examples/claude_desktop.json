@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "autosar-standards-fetcher": {
+      "command": "py",
+      "args": ["-3", "C:/Users/Pratik/Desktop/AUTOSAR_Standards_Downloader/autosar_mcp_server.py"],
+      "env": {}
+    }
+  }
+}

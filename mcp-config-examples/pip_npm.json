@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "autosar-standards-fetcher-pip": {
+      "command": "autosar-fetcher-mcp",
+      "args": []
+    },
+    "autosar-standards-fetcher-npm": {
+      "command": "npx",
+      "args": ["autosar-standards-fetcher", "mcp"]
+    }
+  }
+}

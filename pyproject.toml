@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autosar-standards-fetcher"
+version = "1.0.0"
+description = "Discover, search and download publicly linked AUTOSAR standards with MCP and web support."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AUTOSAR Standards Fetcher contributors" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+dependencies = [
+  "truststore>=0.9.0; platform_system == 'Windows'",
+  "certifi>=2024.0.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0.0"]
+web = []
+all = ["mcp>=1.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/PRATIK082/Autosar-Standards-Fetcher"
+Repository = "https://github.com/PRATIK082/Autosar-Standards-Fetcher"
+
+[project.scripts]
+autosar-fetcher = "download_autosar_standards:main"
+autosar-fetcher-mcp = "autosar_mcp_server:main"
+autosar-fetcher-web = "autosar_web:main"
+
+[tool.setuptools]
+py-modules = ["download_autosar_standards", "autosar_mcp_server", "autosar_web"]

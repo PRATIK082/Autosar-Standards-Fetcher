@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "autosar-standards-fetcher": {
+      "command": "python3",
+      "args": ["/path/to/Autosar-Standards-Fetcher/autosar_mcp_server.py", "--output-dir", "/path/to/AUTOSAR_Standards_Library"]
+    }
+  }
+}

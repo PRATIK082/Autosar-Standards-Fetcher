@@ -1,0 +1,26 @@
+{
+  "name": "autosar-standards-fetcher",
+  "version": "1.0.0",
+  "description": "Node wrapper for the AUTOSAR Standards Fetcher MCP server and CLI (requires Python 3.10+).",
+  "main": "index.js",
+  "files": ["index.js", "bin/", "README.md"],
+  "bin": {
+    "autosar-fetcher": "bin/autosar-fetcher.js",
+    "autosar-fetcher-mcp": "bin/autosar-fetcher-mcp.js"
+  },
+  "scripts": {
+    "mcp": "node bin/autosar-fetcher-mcp.js"
+  },
+  "keywords": ["autosar", "mcp", "standards", "downloader", "model-context-protocol"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PRATIK082/Autosar-Standards-Fetcher.git"
+  },
+  "homepage": "https://github.com/PRATIK082/Autosar-Standards-Fetcher#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {},
+  "peerDependenciesMeta": {}
+}

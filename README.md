@@ -74,6 +74,13 @@ Categories: `PDF`, `Archives`, `Spreadsheets`, `XML_XSD_ARXML`, `Office_Document
 - Transient network failures are retried a few times automatically.
 - Use `--max-pages` (default `10000`) if you need to cap or extend crawling. The current AUTOSAR search index needs only a few hundred pages.
 
+### Coverage notes (missing-file fixes)
+
+- Checksum sidecar files (`.sha256`, `.sha512`, `.md5`, `.asc`, e.g. `*_SpecificationHashes.sha256`) are discovered and stored under `Text_and_Data`.
+- Combined release folders on the server (e.g. `R18-10_R4.4.0_R1.5.0`, `R18-03_R1.4.0`) serve several releases from one file. The downloader saves the primary copy, then mirrors it into each named release folder, so every per-version folder is complete without re-downloading.
+- CMS `sitemap.xml` endpoints are never treated as downloadable artifacts.
+- If two runs share one library folder, manifest writes use a unique temp file plus retries instead of failing with an access error.
+
 ## Folder layout created automatically
 
 ```text
